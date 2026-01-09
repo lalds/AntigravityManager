@@ -64,12 +64,14 @@ When using Antigravity IDE, have you ever encountered these problems?
 - 🔄 Managing multiple Google/Claude accounts is cumbersome
 - 📊 Don't know how much quota is left on the current account
 - ⏰ Worried about missing quota reset times
+- 🔌 Need a reliable local API proxy for development tools
 
 **Antigravity Manager** is here to solve these problems! It's a professional Electron desktop app that helps you:
 
 - ✅ **Unlimited Account Pool** - Add any number of Google Gemini / Claude accounts
 - ✅ **Smart Auto-Switching** - Automatically switch to the next available account when quota is low or rate-limited
 - ✅ **Real-time Monitoring** - Visualize quota usage for all accounts
+- ✅ **Local API Proxy** - Built-in OpenAI/Anthropic compatible proxy server
 - ✅ **Secure Encryption** - AES-256-GCM encryption for sensitive data
 
 ---
@@ -131,6 +133,24 @@ When using Antigravity IDE, have you ever encountered these problems?
       </ul>
     </td>
   </tr>
+  <tr>
+    <td width="50%">
+      <h3>🔌 Local API Proxy</h3>
+      <ul>
+        <li>OpenAI & Anthropic API compatible</li>
+        <li>Configurable port and request timeout</li>
+        <li>Model mapping (e.g. Claude → Gemini)</li>
+      </ul>
+    </td>
+    <td width="50%">
+      <h3>🛠️ Developer Tools</h3>
+      <ul>
+        <li>Built-in cURL & Python code generation</li>
+        <li>Visual service status monitoring</li>
+        <li>One-click API Key regeneration</li>
+      </ul>
+    </td>
+  </tr>
 </table>
 
 ### Additional Features
@@ -147,6 +167,11 @@ When using Antigravity IDE, have you ever encountered these problems?
 
 <p align="center">
   <img src="docs/assets/screenshot-main.png" alt="Main Interface" width="80%" />
+</p>
+
+<p align="center">
+  <img src="docs/assets/screenshot-proxy.png" alt="Proxy Interface" width="48%" />
+  <img src="docs/assets/screenshot-setting.png" alt="Settings Interface" width="48%" />
 </p>
 
 

@@ -64,12 +64,14 @@
 - 🔄 管理多个 Google/Claude 账号非常麻烦
 - 📊 不知道当前账号还剩多少额度
 - ⏰ 担心错过额度重置时间
+- 🔌 需要可靠的本地 API 代理用于开发工具
 
 **Antigravity Manager** 就是为解决这些问题而生的！它是一个专业的 Electron 桌面应用，帮助你：
 
 - ✅ **无限账号池** - 添加任意数量的 Google Gemini / Claude 账号
 - ✅ **智能自动切换** - 额度不足或被限速时自动切换到下一个可用账号
 - ✅ **实时监控** - 可视化显示所有账号的额度使用情况
+- ✅ **本地 API 代理** - 内置兼容 OpenAI/Anthropic 协议的代理服务器
 - ✅ **安全加密** - AES-256-GCM 加密存储敏感信息
 
 ---
@@ -131,6 +133,24 @@
       </ul>
     </td>
   </tr>
+  <tr>
+    <td width="50%">
+      <h3>🔌 本地 API 代理</h3>
+      <ul>
+        <li>兼容 OpenAI & Anthropic API 协议</li>
+        <li>可配置端口和请求超时</li>
+        <li>模型映射（如：Claude → Gemini）</li>
+      </ul>
+    </td>
+    <td width="50%">
+      <h3>🛠️ 开发者工具</h3>
+      <ul>
+        <li>内置 cURL & Python 代码生成</li>
+        <li>可视化服务状态监控</li>
+        <li>一键重新生成 API Key</li>
+      </ul>
+    </td>
+  </tr>
 </table>
 
 ### 更多功能
@@ -147,6 +167,11 @@
 
 <p align="center">
   <img src="docs/assets/screenshot-main.png" alt="主界面" width="80%" />
+</p>
+
+<p align="center">
+  <img src="docs/assets/screenshot-proxy.png" alt="代理界面" width="48%" />
+  <img src="docs/assets/screenshot-setting.png" alt="设置界面" width="48%" />
 </p>
 
 
