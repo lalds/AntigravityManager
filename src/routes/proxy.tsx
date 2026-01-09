@@ -346,7 +346,7 @@ print(response.choices[0].message.content)`;
               </div>
               <Button
                 variant="outline"
-                size="icon"
+                size="sm"
                 onClick={() => navigator.clipboard.writeText(proxyConfig.api_key || '')}
               >
                 <Copy size={14} className="mr-1" />
