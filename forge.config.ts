@@ -10,6 +10,7 @@ import { MakerDeb } from '@electron-forge/maker-deb';
 import { MakerDMG } from '@electron-forge/maker-dmg';
 import { MakerRpm } from '@electron-forge/maker-rpm';
 import { MakerSquirrel } from '@electron-forge/maker-squirrel';
+import { MakerWix } from '@electron-forge/maker-wix';
 import { MakerZIP } from '@electron-forge/maker-zip';
 import { AutoUnpackNativesPlugin } from '@electron-forge/plugin-auto-unpack-natives';
 import { FusesPlugin } from '@electron-forge/plugin-fuses';
@@ -24,19 +25,20 @@ import { stringify as yamlStringify } from 'yaml';
 const nativeModules = ['better-sqlite3', 'keytar', 'bindings', 'file-uri-to-path'];
 const ResolvedMakerAppImage = MakerAppImage;
 const keepLanguages = new Set(['en', 'en-US', 'zh-CN', 'ru']);
+const windowsExecutableName = 'antigravity-manager';
 
 const isStartCommand = process.argv.some((arg) => arg.includes('start'));
 
-const artifactRegex = /.*\.(?:exe|dmg|AppImage|zip|deb|rpm)$/;
+const artifactRegex = /.*\.(?:exe|dmg|AppImage|zip|deb|rpm|msi)$/;
 const platformNamesMap: Record<string, string> = {
   darwin: 'macos',
   linux: 'linux',
   win32: 'windows',
 };
-const ymlMapsMap: Record<string, string> = {
-  darwin: 'latest-mac.yml',
-  linux: 'latest-linux.yml',
-  win32: 'latest.yml',
+const ymlBaseNameMap: Record<string, string> = {
+  darwin: 'latest-mac',
+  linux: 'latest-linux',
+  win32: 'latest',
 };
 const ignorePatterns = [
   /^\/\.git/,
@@ -74,7 +76,11 @@ function normalizeArtifactName(value?: string) {
     return 'app';
   }
 
-  return value.trim().replace(/\s+/g, '-');
+  return value
+    .trim()
+    .replace(/\s+/g, '.')
+    .replace(/[^a-zA-Z0-9.]/g, '')
+    .replace(/\.+/g, '.');
 }
 
 function isSquirrelArtifact(artifactPath: string) {
@@ -84,6 +90,89 @@ function isSquirrelArtifact(artifactPath: string) {
   }
 
   return artifactPath.endsWith('.nupkg');
+}
+
+function mapArchName(arch: string, mapping: Record<string, string>) {
+  return mapping[arch] || arch;
+}
+
+function getArtifactFileName({
+  baseName,
+  version,
+  arch,
+  extension,
+}: {
+  baseName: string;
+  version: string;
+  arch: string;
+  extension: string;
+}) {
+  if (extension === '.rpm') {
+    return `${baseName}-${version}-1.${arch}${extension}`;
+  }
+
+  if (extension === '.deb') {
+    return `${baseName}_${version}_${arch}${extension}`;
+  }
+
+  if (extension === '.AppImage') {
+    return `${baseName}_${version}_${arch}${extension}`;
+  }
+
+  if (extension === '.dmg') {
+    return `${baseName}_${version}_${arch}${extension}`;
+  }
+
+  if (extension === '.exe') {
+    return `${baseName}_${version}_${arch}-setup${extension}`;
+  }
+
+  if (extension === '.msi') {
+    return `${baseName}_${version}_${arch}_en-US${extension}`;
+  }
+
+  if (extension === '.zip') {
+    return `${baseName}_${version}_${arch}${extension}`;
+  }
+
+  return `${baseName}_${version}_${arch}${extension}`;
+}
+
+function getUpdateYmlFileName(platform: string, arch: string) {
+  const baseName = ymlBaseNameMap[platform];
+  if (!baseName) {
+    return null;
+  }
+
+  if (platform === 'darwin') {
+    return arch === 'universal' ? `${baseName}.yml` : `${baseName}-${arch}.yml`;
+  }
+
+  if (platform === 'linux') {
+    return arch === 'x64' ? `${baseName}.yml` : `${baseName}-${arch}.yml`;
+  }
+
+  if (platform === 'win32') {
+    return arch === 'x64' ? `${baseName}.yml` : `${baseName}-${arch}.yml`;
+  }
+
+  return null;
+}
+
+function getChecksumArchLabel(platform: string, arch: string) {
+  if (platform === 'linux') {
+    return mapArchName(arch, { x64: 'amd64', arm64: 'aarch64' });
+  }
+
+  if (platform === 'darwin') {
+    return mapArchName(arch, { x64: 'x64', arm64: 'arm64', universal: 'universal' });
+  }
+
+  if (platform === 'win32') {
+    return mapArchName(arch, { x64: 'x64', arm64: 'arm64' });
+  }
+
+  return arch;
 }
 
 const appImageMaker = new ResolvedMakerAppImage({
@@ -116,7 +205,7 @@ const config: ForgeConfig = {
       unpack: '**/{better-sqlite3,keytar}/**/*',
     },
     name: 'Antigravity Manager',
-    executableName: 'antigravity-manager',
+    executableName: windowsExecutableName,
     icon: 'images/icon', // Electron Forge automatically adds .icns/.ico
     extraResource: ['src/assets'], // Copy assets folder to resources/assets
     afterCopy: packagerAfterCopy,
@@ -167,10 +256,11 @@ const config: ForgeConfig = {
         return makeResults;
       }
 
-      const ymlByPlatform = new Map<
+      const ymlByTarget = new Map<
         string,
         {
           basePath: string;
+          fileName: string;
           yml: {
             version?: string;
             files: {
@@ -182,16 +272,41 @@ const config: ForgeConfig = {
           };
         }
       >();
+      const checksumByTarget = new Map<
+        string,
+        {
+          basePath: string;
+          fileName: string;
+          lines: string[];
+        }
+      >();
 
       makeResults = makeResults.map((result) => {
-        const productName = normalizeArtifactName(result.packageJSON.productName);
+        const productName = normalizeArtifactName(
+          result.packageJSON.productName || result.packageJSON.name,
+        );
         const platformName = platformNamesMap[result.platform] || result.platform;
         const version = result.packageJSON.version;
         const platformKey = result.platform;
+        const archKey = result.arch;
+        const updateFileName = getUpdateYmlFileName(platformKey, archKey);
+        const updateKey = updateFileName ? `${platformKey}-${archKey}` : null;
+        const checksumKey = `${platformKey}-${archKey}`;
+        const checksumArchLabel = getChecksumArchLabel(platformKey, archKey);
+        const checksumFileName = `sha256sums-${platformName}-${checksumArchLabel}.txt`;
 
-        if (!ymlByPlatform.has(platformKey)) {
-          ymlByPlatform.set(platformKey, {
+        if (!checksumByTarget.has(checksumKey)) {
+          checksumByTarget.set(checksumKey, {
             basePath: '',
+            fileName: checksumFileName,
+            lines: [],
+          });
+        }
+
+        if (updateFileName && updateKey && !ymlByTarget.has(updateKey)) {
+          ymlByTarget.set(updateKey, {
+            basePath: '',
+            fileName: updateFileName,
             yml: {
               version,
               files: [],
@@ -199,7 +314,8 @@ const config: ForgeConfig = {
           });
         }
 
-        const platformState = ymlByPlatform.get(platformKey)!;
+        const updateState = updateKey ? ymlByTarget.get(updateKey)! : null;
+        const checksumState = checksumByTarget.get(checksumKey)!;
 
         result.artifacts = result.artifacts
           .map((artifact) => {
@@ -215,11 +331,38 @@ const config: ForgeConfig = {
               return artifact;
             }
 
-            if (!platformState.basePath) {
-              platformState.basePath = path.dirname(artifact);
+            if (!checksumState.basePath) {
+              checksumState.basePath = path.dirname(artifact);
             }
 
-            const newArtifact = `${path.dirname(artifact)}/${productName}-${version}-${platformName}-${result.arch}${path.extname(artifact)}`;
+            if (updateState && !updateState.basePath) {
+              updateState.basePath = path.dirname(artifact);
+            }
+
+            const extension = path.extname(artifact);
+            let archLabel = archKey;
+            if (platformKey === 'linux' && extension === '.rpm') {
+              archLabel = mapArchName(archKey, { x64: 'x86_64', arm64: 'aarch64' });
+            } else if (platformKey === 'linux' && extension === '.deb') {
+              archLabel = mapArchName(archKey, { x64: 'amd64', arm64: 'arm64' });
+            } else if (platformKey === 'linux' && extension === '.AppImage') {
+              archLabel = mapArchName(archKey, { x64: 'amd64', arm64: 'aarch64' });
+            } else if (platformKey === 'darwin') {
+              archLabel = mapArchName(archKey, {
+                x64: 'x64',
+                arm64: 'arm64',
+                universal: 'universal',
+              });
+            } else if (platformKey === 'win32') {
+              archLabel = mapArchName(archKey, { x64: 'x64', arm64: 'arm64' });
+            }
+
+            const newArtifact = `${path.dirname(artifact)}/${getArtifactFileName({
+              baseName: productName,
+              version,
+              arch: archLabel,
+              extension,
+            })}`;
             if (newArtifact !== artifact) {
               fs.renameSync(artifact, newArtifact);
             }
@@ -227,13 +370,18 @@ const config: ForgeConfig = {
             try {
               const fileData = fs.readFileSync(newArtifact);
               const hash = crypto.createHash('sha512').update(fileData).digest('base64');
+              const sha256 = crypto.createHash('sha256').update(fileData).digest('hex');
               const { size } = fs.statSync(newArtifact);
 
-              platformState.yml.files.push({
-                url: path.basename(newArtifact),
-                sha512: hash,
-                size,
-              });
+              if (updateState) {
+                updateState.yml.files.push({
+                  url: path.basename(newArtifact),
+                  sha512: hash,
+                  size,
+                });
+              }
+
+              checksumState.lines.push(`${sha256}  ${path.basename(newArtifact)}`);
             } catch {
               console.error(`Failed to hash ${newArtifact}`);
             }
@@ -246,23 +394,49 @@ const config: ForgeConfig = {
       });
 
       const releaseDate = new Date().toISOString();
-      for (const [platform, platformState] of ymlByPlatform.entries()) {
-        const ymlFileName = ymlMapsMap[platform];
-        if (!ymlFileName || !platformState.basePath) {
+      for (const [updateKey, updateState] of ymlByTarget.entries()) {
+        if (!updateState.basePath) {
           continue;
         }
 
-        platformState.yml.releaseDate = releaseDate;
-        const ymlPath = path.join(platformState.basePath, ymlFileName);
-        fs.writeFileSync(ymlPath, yamlStringify(platformState.yml));
+        updateState.yml.releaseDate = releaseDate;
+        const ymlPath = path.join(updateState.basePath, updateState.fileName);
+        fs.writeFileSync(ymlPath, yamlStringify(updateState.yml));
 
-        const sampleResult = makeResults.find((result) => result.platform === platform);
+        const [platform, arch] = updateKey.split('-');
+        const sampleResult = makeResults.find(
+          (result) => result.platform === platform && result.arch === arch,
+        );
         if (!sampleResult) {
           continue;
         }
 
         makeResults.push({
           artifacts: [ymlPath],
+          platform: sampleResult.platform,
+          arch: sampleResult.arch,
+          packageJSON: sampleResult.packageJSON,
+        });
+      }
+
+      for (const [checksumKey, checksumState] of checksumByTarget.entries()) {
+        if (!checksumState.basePath || checksumState.lines.length === 0) {
+          continue;
+        }
+
+        const checksumPath = path.join(checksumState.basePath, checksumState.fileName);
+        fs.writeFileSync(checksumPath, `${checksumState.lines.join('\n')}\n`);
+
+        const [platform, arch] = checksumKey.split('-');
+        const sampleResult = makeResults.find(
+          (result) => result.platform === platform && result.arch === arch,
+        );
+        if (!sampleResult) {
+          continue;
+        }
+
+        makeResults.push({
+          artifacts: [checksumPath],
           platform: sampleResult.platform,
           arch: sampleResult.arch,
           packageJSON: sampleResult.packageJSON,
@@ -278,6 +452,16 @@ const config: ForgeConfig = {
       iconUrl:
         'https://raw.githubusercontent.com/Draculabo/AntigravityManager/main/images/icon.ico',
     }),
+    ...(process.platform === 'win32' && process.arch === 'x64'
+      ? [
+          new MakerWix({
+            language: 1033,
+            icon: path.join(process.cwd(), 'images', 'icon.ico'),
+            exe: `${windowsExecutableName}.exe`,
+            ui: { chooseDirectory: true },
+          }),
+        ]
+      : []),
     new MakerDMG(
       {
         overwrite: true,
