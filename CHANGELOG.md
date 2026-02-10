@@ -2,6 +2,29 @@
 
 # Changelog
 
+## [0.9.0](https://github.com/Draculabo/AntigravityManager/compare/v0.8.0...v0.9.0) (2026-02-10)
+
+### ✨ Features
+
+* add vercel and ui skills ([#86](https://github.com/Draculabo/AntigravityManager/issues/86)) ([0f7a629](https://github.com/Draculabo/AntigravityManager/commit/0f7a629a4794b5e340371c8d6614c36d14b5ef43))
+* global error fallback and e2e ([#91](https://github.com/Draculabo/AntigravityManager/issues/91)) ([b89dd2c](https://github.com/Draculabo/AntigravityManager/commit/b89dd2c3bbb8ae1617cec511960c934c260abc7c))
+* implement protocol parity and harden upstream handling ([#88](https://github.com/Draculabo/AntigravityManager/issues/88)) ([13f10fe](https://github.com/Draculabo/AntigravityManager/commit/13f10fe32f73306470a50b0284c8026117b65695))
+
+### 🐛 Bug Fixes
+
+* prevent page crash on 500 and add toast-based fallback ([#90](https://github.com/Draculabo/AntigravityManager/issues/90)) ([bcca5ec](https://github.com/Draculabo/AntigravityManager/commit/bcca5ec9351cef6b1cda708777459055a0bc1a0c))
+* prevent sensitive data logging ([#70](https://github.com/Draculabo/AntigravityManager/issues/70)) ([5155e37](https://github.com/Draculabo/AntigravityManager/commit/5155e37fd1ceb4bc72f121fbc9ca53e6b12ce646))
+
+### 📝 Documentation
+
+* upgrade openspec workflow ([#85](https://github.com/Draculabo/AntigravityManager/issues/85)) ([e4584d0](https://github.com/Draculabo/AntigravityManager/commit/e4584d0bc4627054cc2d2b07f998e9f61614e88c))
+
+### 🔧 Continuous Integration
+
+* fix publish workflow release tag resolution ([#82](https://github.com/Draculabo/AntigravityManager/issues/82)) ([5613709](https://github.com/Draculabo/AntigravityManager/commit/56137092beab315843d401e17a3edd456d38ba87))
+* remove darwin universal build from publish workflow ([#81](https://github.com/Draculabo/AntigravityManager/issues/81)) ([5b93ca8](https://github.com/Draculabo/AntigravityManager/commit/5b93ca889108ac354e6c9a84f01149f4653ed7c6))
+* split publish into build and gated release with dry-run ([#80](https://github.com/Draculabo/AntigravityManager/issues/80)) ([3eaf927](https://github.com/Draculabo/AntigravityManager/commit/3eaf9278ae2ef0103efaeed7a0ebdc77a4961025))
+
 ## [0.8.0](https://github.com/Draculabo/AntigravityManager/compare/v0.7.0...v0.8.0) (2026-02-07)
 
 ### ✨ Features
