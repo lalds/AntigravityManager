@@ -269,7 +269,7 @@ export interface GeminiRequest {
 }
 
 export interface GeminiInternalRequest {
-  project: string;
+  project?: string;
   requestId: string;
   request: GeminiRequest;
   model: string;

@@ -476,17 +476,24 @@ export class ProxyService {
   private createGeminiInternalRequest(
     model: string,
     request: GeminiRequest,
-    projectId: string,
+    projectId: string | undefined,
     requestType: string,
   ): GeminiInternalRequest {
-    return {
-      project: projectId,
+    const normalizedProjectId = projectId?.trim();
+
+    const internalRequest: GeminiInternalRequest = {
       requestId: uuidv4(),
       request: this.toInternalGeminiRequest(request),
       model,
       userAgent: process.env.PROXY_REQUEST_USER_AGENT ?? this.defaultRequestUserAgent,
       requestType,
     };
+
+    if (normalizedProjectId) {
+      internalRequest.project = normalizedProjectId;
+    }
+
+    return internalRequest;
   }
 
   private normalizeGeminiGenerateResponse(response: GeminiResponse): GeminiResponse {
@@ -1481,6 +1488,7 @@ export class ProxyService {
   private isProjectNotFoundError(errorMessage: string): boolean {
     const msg = errorMessage.toLowerCase();
     return (
+      msg.includes('invalid project resource name projects/') ||
       (msg.includes('resource projects/') && msg.includes('could not be found')) ||
       (msg.includes('project') && msg.includes('not found'))
     );

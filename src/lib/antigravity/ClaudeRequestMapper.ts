@@ -43,7 +43,7 @@ interface RequestConfig {
  */
 export function transformClaudeRequestIn(
   claudeReq: ClaudeRequest,
-  projectId: string,
+  projectId?: string,
 ): GeminiInternalRequest {
   // Check for networking tools (server tool or built-in tool)
   const hasWebSearchTool = detectsNetworkingTool(claudeReq.tools);
@@ -163,14 +163,19 @@ export function transformClaudeRequestIn(
 
   const requestId = `agent-${uuidv4()}`;
 
+  const normalizedProjectId = projectId?.trim();
+
   const body: GeminiInternalRequest = {
-    project: projectId,
     requestId: requestId,
     request: innerRequest as GeminiInternalRequest['request'],
     model: config.finalModel,
     userAgent: 'antigravity',
     requestType: config.requestType,
   };
+
+  if (normalizedProjectId) {
+    body.project = normalizedProjectId;
+  }
 
   if (claudeReq.metadata?.user_id) {
     body.sessionId = claudeReq.metadata.user_id;

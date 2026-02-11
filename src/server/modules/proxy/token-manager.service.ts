@@ -16,6 +16,19 @@ interface TokenData {
   upstream_proxy_url?: string;
 }
 
+function normalizeProjectId(projectId: string | null | undefined): string | undefined {
+  if (typeof projectId !== 'string') {
+    return undefined;
+  }
+
+  const trimmedProjectId = projectId.trim();
+  if (trimmedProjectId === '' || /^cloud-code-\d+$/i.test(trimmedProjectId)) {
+    return undefined;
+  }
+
+  return trimmedProjectId;
+}
+
 @Injectable()
 export class TokenManagerService implements OnModuleInit {
   private readonly logger = new Logger(TokenManagerService.name);
@@ -177,7 +190,7 @@ export class TokenManagerService implements OnModuleInit {
           tokenData.expiry_timestamp = nowSeconds + newTokens.expires_in;
 
           // Save to DB
-          await this.saveRefreshedToken(accountId, tokenData);
+          await this.saveTokenState(accountId, tokenData);
           this.tokens.set(accountId, tokenData);
 
           this.logger.log(`Refreshed token for ${tokenData.email}`);
@@ -187,11 +200,29 @@ export class TokenManagerService implements OnModuleInit {
       }
 
       if (
-        typeof tokenData.project_id !== 'string' ||
-        tokenData.project_id.trim() === '' ||
-        /^cloud-code-\d+$/i.test(tokenData.project_id.trim())
+        normalizeProjectId(tokenData.project_id) === undefined
       ) {
         tokenData.project_id = undefined;
+      }
+
+      if (!tokenData.project_id) {
+        try {
+          const fetchedProjectId = await GoogleAPIService.fetchProjectId(tokenData.access_token);
+          const normalizedProjectId = normalizeProjectId(fetchedProjectId);
+
+          if (normalizedProjectId) {
+            tokenData.project_id = normalizedProjectId;
+            await this.saveTokenState(accountId, tokenData);
+            this.tokens.set(accountId, tokenData);
+            this.logger.log(`Resolved project ID for ${tokenData.email}: ${normalizedProjectId}`);
+          } else {
+            this.logger.warn(
+              `Project ID is unavailable for ${tokenData.email}; request will continue without project context`,
+            );
+          }
+        } catch (error) {
+          this.logger.warn(`Failed to resolve project ID for ${tokenData.email}`, error);
+        }
       }
 
       this.logger.log(`Using account: ${tokenData.email}`);
@@ -272,7 +303,7 @@ export class TokenManagerService implements OnModuleInit {
     );
   }
 
-  private async saveRefreshedToken(accountId: string, tokenData: TokenData) {
+  private async saveTokenState(accountId: string, tokenData: TokenData) {
     try {
       const acc = await CloudAccountRepo.getAccount(accountId);
       if (acc && acc.token) {
@@ -281,11 +312,14 @@ export class TokenManagerService implements OnModuleInit {
           access_token: tokenData.access_token,
           expires_in: tokenData.expires_in,
           expiry_timestamp: tokenData.expiry_timestamp,
+          project_id: tokenData.project_id ?? acc.token.project_id,
+          session_id: tokenData.session_id ?? acc.token.session_id,
+          upstream_proxy_url: tokenData.upstream_proxy_url ?? acc.token.upstream_proxy_url,
         };
         await CloudAccountRepo.updateToken(accountId, newToken);
       }
     } catch (e) {
-      this.logger.error('Unable to persist refreshed token to DB', e);
+      this.logger.error('Unable to persist token state to DB', e);
     }
   }
 
