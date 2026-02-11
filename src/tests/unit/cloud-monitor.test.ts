@@ -3,6 +3,7 @@ import { CloudMonitorService } from '../../services/CloudMonitorService';
 import { CloudAccountRepo } from '../../ipc/database/cloudHandler';
 import { GoogleAPIService } from '../../services/GoogleAPIService';
 import { AutoSwitchService } from '../../services/AutoSwitchService';
+import { TokenManagerService } from '../../server/modules/proxy/token-manager.service';
 import { logger } from '../../utils/logger';
 
 // Mock dependencies
@@ -190,5 +191,100 @@ describe('CloudMonitorService', () => {
       // 1 for start (initial), 1 for reset = 2
       expect(setIntervalSpy).toHaveBeenCalledTimes(2);
     });
+  });
+});
+
+describe('TokenManagerService project-id hydration', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.useRealTimers();
+  });
+
+  it('hydrates missing project_id and persists it', async () => {
+    const account = {
+      id: 'acc-1',
+      provider: 'google',
+      email: 'user@example.com',
+      token: {
+        access_token: 'access-token',
+        refresh_token: 'refresh-token',
+        token_type: 'Bearer',
+        expires_in: 3600,
+        expiry_timestamp: Math.floor(Date.now() / 1000) + 3600,
+      },
+      created_at: 1,
+      last_used: 1,
+    };
+
+    vi.mocked(CloudAccountRepo.getAccounts).mockResolvedValue([account] as never);
+    vi.mocked(CloudAccountRepo.getAccount).mockResolvedValue(account as never);
+    vi.mocked(CloudAccountRepo.updateToken).mockResolvedValue(undefined as never);
+    vi.mocked(GoogleAPIService.fetchProjectId).mockResolvedValue('resolved-project' as never);
+
+    const service = new TokenManagerService();
+    const selectedToken = await service.getNextToken();
+
+    expect(GoogleAPIService.fetchProjectId).toHaveBeenCalledWith('access-token');
+    expect(CloudAccountRepo.updateToken).toHaveBeenCalledWith(
+      'acc-1',
+      expect.objectContaining({
+        project_id: 'resolved-project',
+      }),
+    );
+    expect(selectedToken?.token.project_id).toBe('resolved-project');
+  });
+
+  it('keeps existing valid project_id without extra fetch', async () => {
+    const account = {
+      id: 'acc-2',
+      provider: 'google',
+      email: 'existing@example.com',
+      token: {
+        access_token: 'access-token-2',
+        refresh_token: 'refresh-token-2',
+        token_type: 'Bearer',
+        expires_in: 3600,
+        expiry_timestamp: Math.floor(Date.now() / 1000) + 3600,
+        project_id: 'existing-project',
+      },
+      created_at: 1,
+      last_used: 1,
+    };
+
+    vi.mocked(CloudAccountRepo.getAccounts).mockResolvedValue([account] as never);
+    vi.mocked(GoogleAPIService.fetchProjectId).mockResolvedValue('new-project' as never);
+
+    const service = new TokenManagerService();
+    const selectedToken = await service.getNextToken();
+
+    expect(GoogleAPIService.fetchProjectId).not.toHaveBeenCalled();
+    expect(selectedToken?.token.project_id).toBe('existing-project');
+  });
+
+  it('keeps request usable when project_id cannot be resolved', async () => {
+    const account = {
+      id: 'acc-3',
+      provider: 'google',
+      email: 'missing@example.com',
+      token: {
+        access_token: 'access-token-3',
+        refresh_token: 'refresh-token-3',
+        token_type: 'Bearer',
+        expires_in: 3600,
+        expiry_timestamp: Math.floor(Date.now() / 1000) + 3600,
+        project_id: 'cloud-code-123',
+      },
+      created_at: 1,
+      last_used: 1,
+    };
+
+    vi.mocked(CloudAccountRepo.getAccounts).mockResolvedValue([account] as never);
+    vi.mocked(GoogleAPIService.fetchProjectId).mockResolvedValue(null as never);
+
+    const service = new TokenManagerService();
+    const selectedToken = await service.getNextToken();
+
+    expect(GoogleAPIService.fetchProjectId).toHaveBeenCalledWith('access-token-3');
+    expect(selectedToken?.token.project_id).toBeUndefined();
   });
 });

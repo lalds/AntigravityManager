@@ -454,8 +454,28 @@ describe('ProxyService Empty Stream Retry Logic', () => {
     expect(mockTokenManager.getNextToken).toHaveBeenCalledTimes(1);
     expect(mockGeminiClient.generateInternal).toHaveBeenCalledTimes(2);
     expect(mockGeminiClient.generateInternal.mock.calls[0][0].project).toBe('project-1');
-    expect(mockGeminiClient.generateInternal.mock.calls[1][0].project).toBe('');
+    expect(mockGeminiClient.generateInternal.mock.calls[1][0].project).toBeUndefined();
+    expect(mockGeminiClient.generateInternal.mock.calls[1][0]).not.toHaveProperty('project');
     expect((result as any).candidates?.[0]?.content?.parts?.[0]?.text).toBe('ok');
+  });
+
+  it('omits empty project id in Gemini internal payload', async () => {
+    const service = new TestableProxyService();
+    const token = createToken('acc-1');
+    token.token.project_id = '';
+    mockTokenManager.getNextToken.mockResolvedValue(token);
+    mockGeminiClient.generateInternal.mockResolvedValue({
+      candidates: [{ content: { parts: [{ text: 'ok' }] }, finishReason: 'STOP' }],
+      usageMetadata: { totalTokenCount: 5 },
+    });
+
+    await service.handleGeminiGenerateContent('models/gemini-2.5-flash', {
+      contents: [{ role: 'user', parts: [{ text: 'hello' }] }],
+    } as any);
+
+    const internalPayload = mockGeminiClient.generateInternal.mock.calls[0][0];
+    expect(internalPayload.project).toBeUndefined();
+    expect(internalPayload).not.toHaveProperty('project');
   });
 
   it('uses generate-content requestType for Gemini stream internal payload', async () => {
