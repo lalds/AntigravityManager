@@ -57,7 +57,7 @@ typings/
 # Yarn Integrity file
 .yarn-integrity
 
-# dotenv environment variables file
+#dotenv environment variables file
 .env
 .env.test
 
@@ -105,3 +105,21 @@ out/
 
 # Sentry Config File
 .env.sentry-build-plugin
+
+# Python CLI
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+env/
+*.egg-info/
+dist/
+build/
+
+# CLI User Data (don't commit personal configs)
+cli/aliases.json
+*.backup
+accounts_backup.json
