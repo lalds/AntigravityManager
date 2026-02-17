@@ -197,22 +197,25 @@ export async function switchCloudAccount(accountId: string): Promise<void> {
         account.device_profile = generated;
       }
 
-      // 1. Ensure token is fresh before injecting
-      const now = Math.floor(Date.now() / 1000);
-      if (account.token.expiry_timestamp < now + 300) {
-        logger.info(`Token for ${account.email} near expiry, refreshing before switch...`);
-        try {
-          const newTokenData = await GoogleAPIService.refreshAccessToken(
-            account.token.refresh_token,
-          );
-          account.token.access_token = newTokenData.access_token;
-          account.token.expires_in = newTokenData.expires_in;
-          account.token.expiry_timestamp = now + newTokenData.expires_in;
-          await CloudAccountRepo.updateToken(account.id, account.token);
-        } catch (e) {
-          logger.warn('Failed to refresh token before switch, trying with existing token', e);
+      // 1. Prepare token refresh promise (start it in parallel with process exit)
+      const tokenRefreshPromise = (async () => {
+        const now = Math.floor(Date.now() / 1000);
+        if (account.token.expiry_timestamp < now + 1200) { // Increased buffer to 20m
+          logger.info(`Token for ${account.email} near expiry, refreshing in parallel...`);
+          try {
+            const newTokenData = await GoogleAPIService.refreshAccessToken(
+              account.token.refresh_token,
+            );
+            account.token.access_token = newTokenData.access_token;
+            account.token.expires_in = newTokenData.expires_in;
+            account.token.expiry_timestamp = now + newTokenData.expires_in;
+            await CloudAccountRepo.updateToken(account.id, account.token);
+            logger.info(`Token refreshed for ${account.email}`);
+          } catch (e) {
+            logger.warn('Failed to refresh token in parallel, will try to use existing', e);
+          }
         }
-      }
+      })();
 
       await executeSwitchFlow({
         scope: 'cloud',
@@ -220,6 +223,9 @@ export async function switchCloudAccount(accountId: string): Promise<void> {
         applyFingerprint: isIdentityProfileApplyEnabled(),
         processExitTimeoutMs: 10000,
         performSwitch: async () => {
+          // Wait for token refresh to complete before injection if it was started
+          await tokenRefreshPromise;
+
           // 3. Backup Database (New Logic)
           const dbPaths = getAntigravityDbPaths();
           // Find the valid DB path
@@ -234,7 +240,8 @@ export async function switchCloudAccount(accountId: string): Promise<void> {
           if (dbPath) {
             try {
               const backupPath = `${dbPath}.backup`;
-              fs.copyFileSync(dbPath, backupPath);
+              // Use async copy to not block
+              await fs.promises.copyFile(dbPath, backupPath);
               logger.info(`Backed up database to ${backupPath}`);
             } catch (e) {
               logger.error('Failed to backup database', e);
@@ -242,7 +249,6 @@ export async function switchCloudAccount(accountId: string): Promise<void> {
           }
 
           // 4. Inject Token
-          // injectedCloudToken uses direct DB/FS access which is sync better-sqlite3.
           CloudAccountRepo.injectCloudToken(account);
 
           // 5. Update usage and active status

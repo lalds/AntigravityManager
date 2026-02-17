@@ -351,7 +351,7 @@ export async function _waitForProcessExit(timeoutMs: number): Promise<void> {
     if (!(await isProcessRunning())) {
       return;
     }
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    await new Promise((resolve) => setTimeout(resolve, 100));
   }
   throw new Error('Process did not exit within timeout');
 }
