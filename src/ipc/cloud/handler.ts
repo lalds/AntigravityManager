@@ -226,25 +226,18 @@ export async function switchCloudAccount(accountId: string): Promise<void> {
           // Wait for token refresh to complete before injection if it was started
           await tokenRefreshPromise;
 
-          // 3. Backup Database (New Logic)
+          // 3. Backup Database (Optimized to avoid race conditions)
           const dbPaths = getAntigravityDbPaths();
-          // Find the valid DB path
-          let dbPath: string | null = null;
-          for (const p of dbPaths) {
-            if (fs.existsSync(p)) {
-              dbPath = p;
-              break;
-            }
-          }
-
-          if (dbPath) {
+          for (const dbPath of dbPaths) {
             try {
               const backupPath = `${dbPath}.backup`;
-              // Use async copy to not block
               await fs.promises.copyFile(dbPath, backupPath);
               logger.info(`Backed up database to ${backupPath}`);
-            } catch (e) {
-              logger.error('Failed to backup database', e);
+              break; // Success, stop trying other paths
+            } catch (e: any) {
+              // If file not found, just try the next path
+              if (e.code === 'ENOENT') continue;
+              logger.error(`Failed to backup database at ${dbPath}`, e);
             }
           }
 
