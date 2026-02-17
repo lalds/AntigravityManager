@@ -30,59 +30,68 @@ def main_callback(ctx: typer.Context):
 
 def interactive_mode():
     """Show interactive menu for selecting actions."""
-    console.print("\n[bold cyan]Antigravity Manager - Interactive Mode[/bold cyan]\n")
-    
-    choices = [
-        "List all accounts",
-        "Switch account",
-        "Refresh quotas",
-        "Validate tokens",
-        "Show status",
-        "Sync status",
-        "Auto-switch to best account",
-        "Manage aliases",
-        "Export/Import",
-        "Run diagnostics",
-        "Setup PATH",
-        "Exit",
-    ]
-    
-    action = questionary.select(
-        "What would you like to do?",
-        choices=choices
-    ).ask()
-    
-    if not action or action == "Exit":
-        console.print("[yellow]Goodbye![/yellow]")
-        return
-    
-    # Execute based on selection
-    if "List" in action:
-        list()
-    elif "Switch" in action:
-        interactive_switch()
-    elif "Refresh" in action:
-        interactive_refresh()
-    elif "Validate" in action:
-        validate()
-    elif "status" in action.lower():
-        status()
-    elif "Sync" in action:
-        sync()
-    elif "Auto-switch" in action:
-        interactive_auto_switch()
-    elif "aliases" in action:
-        interactive_aliases()
-    elif "Export/Import" in action:
-        interactive_export_import()
-    elif "diagnostics" in action:
-        doctor()
-    elif "PATH" in action:
-        setup_path()
-    
-    # Ask to continue
-    if questionary.confirm("\nContinue?", default=True).ask():
-        interactive_mode()
+    try:
+        console.print("\n[bold cyan]Antigravity Manager - Interactive Mode[/bold cyan]\n")
+        
+        choices = [
+            "List all accounts",
+            "Switch account",
+            "Refresh quotas",
+            "Validate tokens",
+            "Show status",
+            "Sync status",
+            "Auto-switch to best account",
+            "Manage aliases",
+            "Export/Import",
+            "Run diagnostics",
+            "Setup PATH",
+            "Exit",
+        ]
+        
+        action = questionary.select(
+            "What would you like to do?",
+            choices=choices
+        ).ask()
+        
+        if not action or action == "Exit":
+            console.print("[yellow]Goodbye![/yellow]")
+            return
+        
+        # Execute based on selection with error handling
+        try:
+            if "List" in action:
+                list()
+            elif "Switch" in action:
+                interactive_switch()
+            elif "Refresh" in action:
+                interactive_refresh()
+            elif "Validate" in action:
+                validate()
+            elif "status" in action.lower():
+                status()
+            elif "Sync" in action:
+                sync()
+            elif "Auto-switch" in action:
+                interactive_auto_switch()
+            elif "aliases" in action:
+                interactive_aliases()
+            elif "Export/Import" in action:
+                interactive_export_import()
+            elif "diagnostics" in action:
+                doctor()
+            elif "PATH" in action:
+                setup_path()
+        except Exception as e:
+            console.print(f"[red]An error occurred: {e}[/red]")
+            console.print("[yellow]Please try again or report this issue.[/yellow]")
+        
+        # Ask to continue
+        if questionary.confirm("\nContinue?", default=True).ask():
+            interactive_mode()
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Goodbye![/yellow]")
+    except Exception as e:
+        console.print(f"[red]Fatal error in interactive mode: {e}[/red]")
 
 def interactive_switch():
     """Interactive account switching."""
@@ -323,14 +332,28 @@ def refresh_all():
     from cli.core import update_account_quota_live, get_accounts
     
     accounts = get_accounts()
-    console.print(f"[bold yellow]Starting bulk refresh for {len(accounts)} accounts...[/bold yellow]")
+    console.print(f"[bold yellow]Starting bulk refresh for {len(accounts)} accounts...[/bold yellow]\n")
     
     async def run_all():
+        errors = []
+        success = 0
+        
         for acc in accounts:
-            await update_account_quota_live(acc['email'])
+            try:
+                await update_account_quota_live(acc['email'])
+                success += 1
+            except Exception as e:
+                errors.append((acc['email'], str(e)))
+                console.print(f"[red]✗ Error refreshing {acc['email']}: {e}[/red]")
+        
+        return success, errors
             
-    asyncio.run(run_all())
-    console.print("[bold green]All accounts refreshed![/bold green]")
+    success_count, errors = asyncio.run(run_all())
+    
+    console.print(f"\n[bold green]Completed: {success_count} successful[/bold green]")
+    if errors:
+        console.print(f"[bold red]{len(errors)} failed[/bold red]")
+
 
 @app.command()
 def validate():

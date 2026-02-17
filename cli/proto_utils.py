@@ -4,6 +4,9 @@ import struct
 import base64
 
 def encode_varint(value: int) -> bytes:
+    if value < 0:
+        raise ValueError("Varint encoding only supports non-negative integers. Use zigzag encoding for signed values.")
+    
     buf = []
     val = value
     while val >= 128:
@@ -11,6 +14,7 @@ def encode_varint(value: int) -> bytes:
         val >>= 7
     buf.append(val)
     return bytes(buf)
+
 
 def read_varint(data: bytes, offset: int) -> tuple[int, int]:
     result = 0

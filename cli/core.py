@@ -272,11 +272,9 @@ def inject_token(account):
         shutil.copy2(db_path, db_path + ".backup")
     except Exception as e:
         print(f"Backup failed: {e}")
+        return False
         
-    # Inject
-    # We need to construct the value for 'antigravityUnifiedStateSync.oauthToken'
-    # Format: Base64 of protobuf
-    
+    # Inject with transaction for atomicity
     token_data = account.get('token', {})
     access_token = token_data.get('access_token')
     refresh_token = token_data.get('refresh_token')
@@ -288,36 +286,45 @@ def inject_token(account):
         
     value_b64 = create_unified_oauth_token(access_token, refresh_token, expiry)
     
-    # Write to SQLite
+    # Write to SQLite with transaction
     try:
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         
-        # Ensure table exists (it should)
-        cursor.execute("CREATE TABLE IF NOT EXISTS ItemTable (key TEXT PRIMARY KEY, value TEXT)")
+        # Start transaction
+        cursor.execute("BEGIN")
         
-        # Upsert
-        key = 'antigravityUnifiedStateSync.oauthToken'
-        val = value_b64
-        
-        cursor.execute("INSERT OR REPLACE INTO ItemTable (key, value) VALUES (?, ?)", (key, val))
-        
-        # Also clean up auth status
-        auth_status = json.dumps({
-            "name": account.get('name') or account.get('email'),
-            "email": account['email'],
-            "apiKey": access_token
-        })
-        cursor.execute("INSERT OR REPLACE INTO ItemTable (key, value) VALUES (?, ?)", ('antigravityAuthStatus', auth_status))
-        cursor.execute("INSERT OR REPLACE INTO ItemTable (key, value) VALUES (?, ?)", ('antigravityOnboarding', 'true'))
-        cursor.execute("DELETE FROM ItemTable WHERE key = ?", ('google.antigravity',))
-        
-        conn.commit()
-        conn.close()
-        print(f"Injected token for {account['email']}")
-        return True
+        try:
+            # Ensure table exists (it should)
+            cursor.execute("CREATE TABLE IF NOT EXISTS ItemTable (key TEXT PRIMARY KEY, value TEXT)")
+            
+            # Upsert
+            key = 'antigravityUnifiedStateSync.oauthToken'
+            cursor.execute("INSERT OR REPLACE INTO ItemTable (key, value) VALUES (?, ?)", (key, value_b64))
+            
+            # Also clean up auth status
+            auth_status = json.dumps({
+                "name": account.get('name') or account.get('email'),
+                "email": account['email'],
+                "apiKey": access_token
+            })
+            cursor.execute("INSERT OR REPLACE INTO ItemTable (key, value) VALUES (?, ?)", ('antigravityAuthStatus', auth_status))
+            cursor.execute("INSERT OR REPLACE INTO ItemTable (key, value) VALUES (?, ?)", ('antigravityOnboarding', 'true'))
+            cursor.execute("DELETE FROM ItemTable WHERE key = ?", ('google.antigravity',))
+            
+            # Commit transaction
+            conn.commit()
+            print(f"Injected token for {account['email']}")
+            return True
+        except Exception as e:
+            # Rollback on error
+            conn.rollback()
+            print(f"Injection failed, rolled back: {e}")
+            return False
+        finally:
+            conn.close()
     except Exception as e:
-        print(f"Injection failed: {e}")
+        print(f"Database connection failed: {e}")
         return False
 
 def kill_process(name_hints=["Antigravity", "Antigravity Manager"]):
@@ -786,29 +793,71 @@ def import_accounts(input_path: str) -> bool:
         with open(input_path, 'r') as f:
             import_data = json.load(f)
         
+        # Validate structure
+        if not isinstance(import_data, list):
+            print("Invalid backup format: expected list of accounts")
+            return False
+        
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         
+        # Start transaction
+        cursor.execute("BEGIN")
+        
         imported = 0
-        for acc in import_data:
-            # Check if account already exists
-            cursor.execute("SELECT email FROM accounts WHERE email = ?", (acc['email'],))
-            if cursor.fetchone():
-                print(f"Skipping {acc['email']} (already exists)")
-                continue
+        try:
+            for acc in import_data:
+                # Validate required fields
+                if not isinstance(acc, dict):
+                    print(f"Skipping invalid entry (not a dict)")
+                    continue
+                    
+                if 'email' not in acc:
+                    print(f"Skipping entry without email")
+                    continue
+                
+                # Sanitize email
+                email = str(acc['email']).strip()
+                if not email or '@' not in email:
+                    print(f"Skipping invalid email: {email}")
+                    continue
+                
+                # Check if account already exists
+                cursor.execute("SELECT email FROM accounts WHERE email = ?", (email,))
+                if cursor.fetchone():
+                    print(f"Skipping {email} (already exists)")
+                    continue
+                
+                # Insert account with validated data
+                cursor.execute(
+                    "INSERT INTO accounts (email, token_json, quota_json, name, avatar_url, last_used, is_active) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    (
+                        email,
+                        acc.get('token_json', ''),
+                        acc.get('quota_json', ''),
+                        acc.get('name', ''),
+                        acc.get('avatar_url', ''),
+                        int(acc.get('last_used', 0)),
+                        0  # Never set imported accounts as active
+                    )
+                )
+                imported += 1
             
-            # Insert account
-            cursor.execute(
-                "INSERT INTO accounts (email, token_json, quota_json, name, avatar_url, last_used, is_active) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                (acc['email'], acc['token_json'], acc['quota_json'], acc.get('name', ''), acc.get('avatar_url', ''), acc.get('last_used', 0), 0)
-            )
-            imported += 1
-        
-        conn.commit()
-        conn.close()
-        
-        print(f"Imported {imported} account(s).")
-        return True
+            # Commit transaction
+            conn.commit()
+            print(f"Imported {imported} account(s).")
+            return True
+        except Exception as e:
+            # Rollback on error
+            conn.rollback()
+            print(f"Import failed during transaction, rolled back: {e}")
+            return False
+        finally:
+            conn.close()
+            
+    except json.JSONDecodeError as e:
+        print(f"Invalid JSON in backup file: {e}")
+        return False
     except Exception as e:
         print(f"Import failed: {e}")
         return False
