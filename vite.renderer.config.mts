@@ -11,23 +11,27 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [
-      sentryVitePlugin({
-        org: process.env.SENTRY_ORG || env.SENTRY_ORG,
-        project: process.env.SENTRY_PROJECT || env.SENTRY_PROJECT,
-        authToken: process.env.SENTRY_AUTH_TOKEN || env.SENTRY_AUTH_TOKEN,
-        release: {
-          name: `${process.env.npm_package_name}@${process.env.npm_package_version}`,
-        },
-        // Electron loads files from app://, so we need to normalize paths for Source Map matching
-        sourcemaps: {
-          // Rewrite the source paths to strip the Electron app:// protocol
-          rewriteSources: (source) => {
-            // Transform: app:///.vite/renderer/main_window/assets/index.js
-            // Into:      ~/.vite/renderer/main_window/assets/index.js
-            return source.replace(/^app:\/\/\//, '~/');
-          },
-        },
-      }),
+      ...(mode === 'production'
+        ? [
+          sentryVitePlugin({
+            org: process.env.SENTRY_ORG || env.SENTRY_ORG,
+            project: process.env.SENTRY_PROJECT || env.SENTRY_PROJECT,
+            authToken: process.env.SENTRY_AUTH_TOKEN || env.SENTRY_AUTH_TOKEN,
+            release: {
+              name: `${process.env.npm_package_name}@${process.env.npm_package_version}`,
+            },
+            // Electron loads files from app://, so we need to normalize paths for Source Map matching
+            sourcemaps: {
+              // Rewrite the source paths to strip the Electron app:// protocol
+              rewriteSources: (source) => {
+                // Transform: app:///.vite/renderer/main_window/assets/index.js
+                // Into:      ~/.vite/renderer/main_window/assets/index.js
+                return source.replace(/^app:\/\/\//, '~/');
+              },
+            },
+          }),
+        ]
+        : []),
       tanstackRouter({
         target: 'react',
         autoCodeSplitting: true,

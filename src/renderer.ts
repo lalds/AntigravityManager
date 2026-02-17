@@ -1,12 +1,15 @@
-import * as Sentry from '@sentry/electron/renderer';
-
-if (window.electron.SENTRY_ENABLED) {
-  // Defer initialization to prioritize initial render
-  setTimeout(() => {
-    Sentry.init({
-      dsn: process.env.SENTRY_DSN,
+try {
+  if (window.electron?.SENTRY_ENABLED && process.env.NODE_ENV === 'production') {
+    import('@sentry/electron/renderer').then((Sentry) => {
+      setTimeout(() => {
+        Sentry.init({
+          dsn: process.env.SENTRY_DSN,
+        });
+      }, 2000);
     });
-  }, 2000);
+  }
+} catch (e) {
+  console.warn('Sentry initialization failed:', e);
 }
 
 import '@/App';

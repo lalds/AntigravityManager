@@ -202,7 +202,9 @@ export async function switchCloudAccount(accountId: string): Promise<void> {
       if (account.token.expiry_timestamp < now + 300) {
         logger.info(`Token for ${account.email} near expiry, refreshing before switch...`);
         try {
-          const newTokenData = await GoogleAPIService.refreshAccessToken(account.token.refresh_token);
+          const newTokenData = await GoogleAPIService.refreshAccessToken(
+            account.token.refresh_token,
+          );
           account.token.access_token = newTokenData.access_token;
           account.token.expires_in = newTokenData.expires_in;
           account.token.expiry_timestamp = now + newTokenData.expires_in;

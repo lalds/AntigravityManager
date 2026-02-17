@@ -7,14 +7,15 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [
-      sentryVitePlugin({
-        org: process.env.SENTRY_ORG || env.SENTRY_ORG,
-        project: process.env.SENTRY_PROJECT || env.SENTRY_PROJECT,
-        authToken: process.env.SENTRY_AUTH_TOKEN || env.SENTRY_AUTH_TOKEN,
-        release: {
-          name: `${process.env.npm_package_name}@${process.env.npm_package_version}`,
-        },
-      }),
+      // Disabled Sentry to prevent build errors
+      // sentryVitePlugin({
+      //   org: process.env.SENTRY_ORG || env.SENTRY_ORG,
+      //   project: process.env.SENTRY_PROJECT || env.SENTRY_PROJECT,
+      //   authToken: process.env.SENTRY_AUTH_TOKEN || env.SENTRY_AUTH_TOKEN,
+      //   release: {
+      //     name: `${process.env.npm_package_name}@${process.env.npm_package_version}`,
+      //   },
+      // }),
     ],
     resolve: {
       alias: {
