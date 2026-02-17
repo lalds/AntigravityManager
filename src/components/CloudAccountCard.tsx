@@ -87,8 +87,8 @@ export function CloudAccountCard({
     const now = new Date();
     if (isBefore(targetDate, now)) return '0h 0m';
 
-    const diffHrs = differenceInHours(targetDate, now);
-    const diffMins = differenceInMinutes(targetDate, now) - diffHrs * 60;
+    const diffHrs = Math.max(0, differenceInHours(targetDate, now));
+    const diffMins = Math.max(0, differenceInMinutes(targetDate, now) - diffHrs * 60);
     if (diffHrs >= 24) {
       const diffDays = Math.floor(diffHrs / 24);
       const remainingHrs = diffHrs % 24;
@@ -124,7 +124,10 @@ export function CloudAccountCard({
   for (const [name, info] of rawModels) {
     if (name.includes('gemini-3-pro-low') && hasHigh) continue;
     if (name.includes('gemini-3-pro-high') && hasLow) {
-      processedModels['gemini-3-pro-low/high'] = info;
+      // Use the lower percentage if both exist, to be safe
+      const lowInfo = rawModels.find(([n]) => n.includes('gemini-3-pro-low'))?.[1];
+      const mergedPercentage = lowInfo ? Math.min(info.percentage, lowInfo.percentage) : info.percentage;
+      processedModels['gemini-3-pro-low/high'] = { ...info, percentage: mergedPercentage };
       continue;
     }
     processedModels[name] = info;
