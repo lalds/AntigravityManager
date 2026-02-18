@@ -26,6 +26,10 @@ import { useAppConfig } from '@/hooks/useAppConfig';
 import { useProviderGrouping } from '@/hooks/useProviderGrouping';
 import { ProviderGroup } from '@/components/ProviderGroup';
 
+interface ModelQuotaInfo {
+  percentage: number;
+  resetTime: string;
+}
 interface CloudAccountCardProps {
   account: CloudAccount;
   onRefresh: (id: string) => void;
@@ -117,7 +121,7 @@ export function CloudAccountCard({
   );
 
   // Group Gemini 3 Pro Low/High if both exist
-  const processedModels: Record<string, any> = {};
+  const processedModels: Record<string, ModelQuotaInfo> = {};
   const hasLow = rawModels.some(([name]) => name.includes('gemini-3-pro-low'));
   const hasHigh = rawModels.some(([name]) => name.includes('gemini-3-pro-high'));
 
@@ -126,7 +130,9 @@ export function CloudAccountCard({
     if (name.includes('gemini-3-pro-high') && hasLow) {
       // Use the lower percentage if both exist, to be safe
       const lowInfo = rawModels.find(([n]) => n.includes('gemini-3-pro-low'))?.[1];
-      const mergedPercentage = lowInfo ? Math.min(info.percentage, lowInfo.percentage) : info.percentage;
+      const mergedPercentage = lowInfo
+        ? Math.min(info.percentage, lowInfo.percentage)
+        : info.percentage;
       processedModels['gemini-3-pro-low/high'] = { ...info, percentage: mergedPercentage };
       continue;
     }
@@ -144,6 +150,7 @@ export function CloudAccountCard({
   const hasHighTier = geminiModels.some(
     ([name, info]) => name.includes('gemini-3-pro') && info.percentage > 50,
   );
+  const hasRenderableModels = geminiModels.length > 0 || claudeModels.length > 0;
 
   const formatModelName = (name: string) => {
     return name
@@ -164,7 +171,7 @@ export function CloudAccountCard({
       .join(' ');
   };
 
-  const renderModelGroup = (title: string, models: [string, any][]) => {
+  const renderModelGroup = (title: string, models: [string, ModelQuotaInfo][]) => {
     if (models.length === 0) return null;
     return (
       <div key={title} className="space-y-1">
@@ -308,7 +315,7 @@ export function CloudAccountCard({
               variant="secondary"
               className="animate-pulse border-blue-500/20 bg-blue-500/10 text-[10px] text-blue-500"
             >
-              Gemini 3 Ready
+              {t('cloud.card.gemini3Ready')}
             </Badge>
           )}
 
@@ -386,11 +393,11 @@ export function CloudAccountCard({
                 </>
               );
             })()
-          ) : Object.keys(processedModels).length > 0 ? (
+          ) : hasRenderableModels ? (
             <div className="space-y-3">
-              {renderModelGroup('Google Gemini', geminiModels)}
+              {renderModelGroup(t('cloud.card.groupGoogleGemini'), geminiModels)}
               <div className="pt-1" />
-              {renderModelGroup('Anthropic Claude', claudeModels)}
+              {renderModelGroup(t('cloud.card.groupAnthropicClaude'), claudeModels)}
             </div>
           ) : (
             <div className="text-muted-foreground flex flex-col items-center justify-center py-4">
