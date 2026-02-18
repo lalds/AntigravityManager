@@ -200,7 +200,7 @@ function createWindow({ startHidden }: { startHidden: boolean }) {
   logger.info('createWindow: setMainWindow done');
 
   if (inDevelopment && MAIN_WINDOW_VITE_DEV_SERVER_URL) {
-    const devUrl = MAIN_WINDOW_VITE_DEV_SERVER_URL.replace('localhost', '127.0.0.1');
+    const devUrl = MAIN_WINDOW_VITE_DEV_SERVER_URL;
     logger.info(`createWindow: waiting for Vite dev server at ${devUrl}`);
 
     // Wait for Vite to be ready before loading
@@ -222,6 +222,11 @@ function createWindow({ startHidden }: { startHidden: boolean }) {
     };
 
     waitForVite(devUrl).then((ready) => {
+      if (mainWindow.isDestroyed()) {
+        logger.warn('createWindow: BrowserWindow destroyed before Vite URL load');
+        return;
+      }
+
       if (ready) {
         logger.info(`createWindow: loading URL ${devUrl}`);
         mainWindow.loadURL(devUrl);
