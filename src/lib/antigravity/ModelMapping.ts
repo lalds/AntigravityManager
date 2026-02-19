@@ -47,6 +47,7 @@ const CLAUDE_TO_GEMINI: Record<string, string> = {
   'gemini-3-pro-high': 'gemini-3-pro-preview',
   'gemini-3-pro-preview': 'gemini-3-pro-preview',
   'gemini-3-pro': 'gemini-3-pro-preview',
+  'gemini-3.1-pro': 'gemini-3.1-pro-preview',
   'gemini-2.5-flash': 'gemini-2.5-flash',
   'gemini-3-flash': 'gemini-3-flash',
   'gemini-3-pro-image': 'gemini-3-pro-image',
@@ -62,6 +63,7 @@ const EXTRA_DYNAMIC_MODELS = [
   'gemini-3-flash',
   'gemini-3-pro-high',
   'gemini-3-pro-low',
+  'gemini-3.1-pro-preview',
 ];
 
 export const MODEL_LIST_CREATED_AT = 1770652800;
