@@ -145,13 +145,22 @@ def interactive_auto_switch():
         default="50"
     ).ask()
     
-    model_choices = ["Any model", "Gemini", "Claude"]
+    model_choices = ["Any model", "Gemini 3.1 Pro", "Gemini 3 Pro", "Gemini Flash", "Claude"]
     model_pref = questionary.select(
         "Prefer specific model?",
         choices=model_choices
     ).ask()
     
-    model = None if model_pref == "Any model" else model_pref.lower()
+    if model_pref == "Any model":
+        model = None
+    elif model_pref == "Gemini 3.1 Pro":
+        model = "gemini-3.1-pro-preview"
+    elif model_pref == "Gemini 3 Pro":
+        model = "gemini-3-pro"
+    elif model_pref == "Gemini Flash":
+        model = "flash"
+    else:
+        model = model_pref.lower()
     
     auto_switch(int(min_quota), model)
 
@@ -223,9 +232,10 @@ def list():
     table = Table(title="Antigravity Accounts")
     table.add_column("Account (Email)", style="cyan", no_wrap=True)
     table.add_column("Status", style="bold green", justify="center")
-    table.add_column("Gemini Pro", style="magenta", justify="right")
-    table.add_column("Gemini Flash", style="yellow", justify="right")
-    table.add_column("Claude (All)", style="blue", justify="right")
+    table.add_column("G 3.1 Pro", style="magenta", justify="right")
+    table.add_column("G 3 Pro", style="bright_magenta", justify="right")
+    table.add_column("G Flash", style="yellow", justify="right")
+    table.add_column("Claude", style="blue", justify="right")
     
     for acc in accounts:
         status = "● [Active]" if acc.get('is_active') else ""
@@ -235,14 +245,18 @@ def list():
         from cli.core import is_token_expired
         token_expired = is_token_expired(acc.get('token'))
         if token_expired:
-            status += " [red]⚠ Token Expired[/red]"
+            status += " [red]⚠ Expired[/red]"
         
-        # Gemini Pro Group
-        gp_vals = [m['percentage'] for n, m in quota.items() if 'gemini' in n.lower() and 'pro' in n.lower()]
+        # Gemini 3.1 Pro
+        g31_vals = [m['percentage'] for n, m in quota.items() if 'gemini-3.1-pro' in n.lower()]
+        g31_str = f"{min(g31_vals)}%" if g31_vals else "-"
+        
+        # Gemini 3 Pro (Non-3.1)
+        gp_vals = [m['percentage'] for n, m in quota.items() if 'gemini-3' in n.lower() and 'pro' in n.lower() and '3.1' not in n]
         gp_str = f"{min(gp_vals)}%" if gp_vals else "-"
         
-        # Gemini Flash
-        gf_vals = [m['percentage'] for n, m in quota.items() if 'gemini' in n.lower() and 'flash' in n.lower()]
+        # Gemini Flash (3.x)
+        gf_vals = [m['percentage'] for n, m in quota.items() if 'gemini-3' in n.lower() and 'flash' in n.lower()]
         gf_str = f"{min(gf_vals)}%" if gf_vals else "-"
         
         # Claude Group
@@ -250,14 +264,17 @@ def list():
         c_str = f"{min(c_vals)}%" if c_vals else "-"
         
         # Highlight low quotas
-        if gp_vals and min(gp_vals) < 20:
-            gp_str = f"[red]{gp_str}[/red]"
-        if gf_vals and min(gf_vals) < 20:
-            gf_str = f"[red]{gf_str}[/red]"
-        if c_vals and min(c_vals) < 20:
-            c_str = f"[red]{c_str}[/red]"
+        def highlight(s, vals):
+            if vals and min(vals) < 20: return f"[red]{s}[/red]"
+            if vals and min(vals) < 50: return f"[yellow]{s}[/yellow]"
+            return s
+
+        g31_str = highlight(g31_str, g31_vals)
+        gp_str = highlight(gp_str, gp_vals)
+        gf_str = highlight(gf_str, gf_vals)
+        c_str = highlight(c_str, c_vals)
         
-        table.add_row(acc['email'], status, gp_str, gf_str, c_str)
+        table.add_row(acc['email'], status, g31_str, gp_str, gf_str, c_str)
         
     console.print(table)
 
@@ -530,13 +547,16 @@ def status():
     
     quota = active.get('quota', {}).get('models', {})
     if quota:
-        gp_vals = [m['percentage'] for n, m in quota.items() if 'gemini' in n.lower() and 'pro' in n.lower()]
+        g31_vals = [m['percentage'] for n, m in quota.items() if 'gemini-3.1-pro' in n.lower()]
+        gp_vals = [m['percentage'] for n, m in quota.items() if 'gemini-3' in n.lower() and 'pro' in n.lower() and '3.1' not in n]
         c_vals = [m['percentage'] for n, m in quota.items() if 'claude' in n.lower()]
         
+        g31_min = min(g31_vals) if g31_vals else 0
         gp_min = min(gp_vals) if gp_vals else 0
         c_min = min(c_vals) if c_vals else 0
         
-        console.print(f"[magenta]Gemini Pro:[/magenta] {gp_min}%")
+        if g31_vals: console.print(f"[magenta]Gemini 3.1 Pro:[/magenta] {g31_min}%")
+        if gp_vals: console.print(f"[bright_magenta]Gemini 3 Pro:[/bright_magenta] {gp_min}%")
         console.print(f"[blue]Claude:[/blue] {c_min}%")
     else:
         console.print("[yellow]No quota data available[/yellow]")

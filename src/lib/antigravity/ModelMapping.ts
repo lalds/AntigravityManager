@@ -48,6 +48,7 @@ const CLAUDE_TO_GEMINI: Record<string, string> = {
   'gemini-3-pro': 'gemini-3-pro-preview',
   'gemini-2.5-flash': 'gemini-3-flash',
   'gemini-3-flash': 'gemini-3-flash',
+  'gemini-3.1-pro-preview': 'gemini-3.1-pro-preview',
   'gemini-3-pro-image': 'gemini-3-pro-image',
   'internal-background-task': 'gemini-3-flash',
 };
@@ -55,7 +56,12 @@ const CLAUDE_TO_GEMINI: Record<string, string> = {
 const DYNAMIC_IMAGE_BASE_MODEL = 'gemini-3-pro-image';
 const DYNAMIC_IMAGE_RESOLUTIONS = ['', '-2k', '-4k'];
 const DYNAMIC_IMAGE_RATIOS = ['', '-1x1', '-4x3', '-3x4', '-16x9', '-9x16', '-21x9'];
-const EXTRA_DYNAMIC_MODELS = ['gemini-3-flash', 'gemini-3-pro-high', 'gemini-3-pro-low'];
+const EXTRA_DYNAMIC_MODELS = [
+  'gemini-3-flash',
+  'gemini-3-pro-high',
+  'gemini-3-pro-low',
+  'gemini-3.1-pro-preview',
+];
 
 export const MODEL_LIST_CREATED_AT = 1770652800;
 

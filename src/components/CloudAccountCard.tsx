@@ -157,6 +157,8 @@ export function CloudAccountCard({
       .replace('models/', '')
       .replace('gemini-3-pro-low/high', 'Gemini 3 Pro (Low/High)')
       .replace('gemini-3-pro-preview', 'Gemini 3 Pro Preview')
+      .replace('gemini-3.1-pro-preview', 'Gemini 3.1 Pro Preview')
+      .replace('gemini-3.1-pro', 'Gemini 3.1 Pro')
       .replace('gemini-3-pro-image', 'Gemini 3 Pro Image')
       .replace('gemini-3-pro', 'Gemini 3 Pro')
       .replace('gemini-3-flash', 'Gemini 3 Flash')

@@ -124,6 +124,7 @@ function ProxyPage() {
     { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', icon: <Zap size={14} /> },
     { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', icon: <Cpu size={14} /> },
     { id: 'gemini-3-flash', name: 'Gemini 3 Flash', icon: <Zap size={14} /> },
+    { id: 'gemini-3.1-pro-preview', name: 'Gemini 3.1 Pro', icon: <Cpu size={14} /> },
     { id: 'gemini-3-pro-high', name: 'Gemini 3 Pro (High)', icon: <Cpu size={14} /> },
     { id: 'claude-sonnet-4-5-thinking', name: 'Claude Sonnet 4.5', icon: <Sparkles size={14} /> },
     { id: 'claude-opus-4-5-thinking', name: 'Claude Opus 4.5', icon: <BrainCircuit size={14} /> },
