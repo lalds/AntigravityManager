@@ -227,56 +227,68 @@ def interactive_export_import():
 @app.command()
 def list():
     """List all accounts with summarized quotas."""
+    from rich import box
     accounts = get_accounts()
     
-    table = Table(title="Antigravity Accounts")
-    table.add_column("Account (Email)", style="cyan", no_wrap=True)
-    table.add_column("Status", style="bold green", justify="center")
-    table.add_column("G 3.1 Pro", style="magenta", justify="right")
-    table.add_column("G 3 Pro", style="bright_magenta", justify="right")
-    table.add_column("G Flash", style="yellow", justify="right")
-    table.add_column("Claude", style="blue", justify="right")
+    table = Table(
+        title="[bold magenta]Antigravity Accounts Summary[/bold magenta]",
+        box=box.ROUNDED,
+        header_style="bold cyan",
+        title_style="bold magenta",
+        padding=(0, 2),
+        show_footer=False,
+        border_style="dim"
+    )
+    
+    table.add_column("Account (Email)", style="white", no_wrap=True)
+    table.add_column("Status", justify="center")
+    table.add_column("G 3.1 Pro", style="magenta", justify="center")
+    table.add_column("G 3 Pro", style="bright_magenta", justify="center")
+    table.add_column("G Flash", style="yellow", justify="center")
+    table.add_column("Claude", style="blue", justify="center")
     
     for acc in accounts:
-        status = "● [Active]" if acc.get('is_active') else ""
+        status_text = "[bold green]Active[/bold green]" if acc.get('is_active') else "[dim]—[/dim]"
         quota = acc.get('quota', {}).get('models', {})
         
         # Check token expiry
         from cli.core import is_token_expired
         token_expired = is_token_expired(acc.get('token'))
         if token_expired:
-            status += " [red]⚠ Expired[/red]"
+            status_text = "[bold red]⚠ Expired[/bold red]"
         
         # Gemini 3.1 Pro
         g31_vals = [m['percentage'] for n, m in quota.items() if 'gemini-3.1-pro' in n.lower()]
-        g31_str = f"{min(g31_vals)}%" if g31_vals else "-"
+        g31_str = f"{min(g31_vals)}%" if g31_vals else "[dim]-[/dim]"
         
-        # Gemini 3 Pro (Non-3.1)
+        # Gemini 3 Pro
         gp_vals = [m['percentage'] for n, m in quota.items() if 'gemini-3' in n.lower() and 'pro' in n.lower() and '3.1' not in n]
-        gp_str = f"{min(gp_vals)}%" if gp_vals else "-"
+        gp_str = f"{min(gp_vals)}%" if gp_vals else "[dim]-[/dim]"
         
-        # Gemini Flash (3.x)
+        # Gemini Flash
         gf_vals = [m['percentage'] for n, m in quota.items() if 'gemini-3' in n.lower() and 'flash' in n.lower()]
-        gf_str = f"{min(gf_vals)}%" if gf_vals else "-"
+        gf_str = f"{min(gf_vals)}%" if gf_vals else "[dim]-[/dim]"
         
-        # Claude Group
+        # Claude
         c_vals = [m['percentage'] for n, m in quota.items() if 'claude' in n.lower()]
-        c_str = f"{min(c_vals)}%" if c_vals else "-"
+        c_str = f"{min(c_vals)}%" if c_vals else "[dim]-[/dim]"
         
         # Highlight low quotas
         def highlight(s, vals):
-            if vals and min(vals) < 20: return f"[red]{s}[/red]"
-            if vals and min(vals) < 50: return f"[yellow]{s}[/yellow]"
-            return s
+            if not vals: return s
+            m = min(vals)
+            if m < 20: return f"[bold red]{s}[/bold red]"
+            if m < 50: return f"[yellow]{s}[/yellow]"
+            return f"[green]{s}[/green]"
 
         g31_str = highlight(g31_str, g31_vals)
         gp_str = highlight(gp_str, gp_vals)
         gf_str = highlight(gf_str, gf_vals)
         c_str = highlight(c_str, c_vals)
         
-        table.add_row(acc['email'], status, g31_str, gp_str, gf_str, c_str)
+        table.add_row(acc['email'], status_text, g31_str, gp_str, gf_str, c_str)
         
-    console.print(table)
+    console.print("\n", table, "\n")
 
 @app.command()
 def info(email: str):
