@@ -46,7 +46,7 @@ const CLAUDE_TO_GEMINI: Record<string, string> = {
   'gemini-3-pro-high': 'gemini-3-pro-preview',
   'gemini-3-pro-preview': 'gemini-3-pro-preview',
   'gemini-3-pro': 'gemini-3-pro-preview',
-  'gemini-2.5-flash': 'gemini-3-flash',
+  'gemini-2.5-flash': 'gemini-2.5-flash',
   'gemini-3-flash': 'gemini-3-flash',
   'gemini-3.1-pro-preview': 'gemini-3.1-pro-preview',
   'gemini-3-pro-image': 'gemini-3-pro-image',
