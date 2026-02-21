@@ -213,7 +213,7 @@ function resolveRequestConfig(
 
   let finalModel = mappedModel.replace(/-online$/, '');
 
-  if (finalModel === 'gemini-3-pro-preview') {
+  if (finalModel === 'gemini-3-pro-preview' || finalModel === 'gemini-3.1-pro-preview') {
     finalModel = 'gemini-3-pro-high';
   } else if (finalModel === 'gemini-3-pro-image-preview') {
     finalModel = 'gemini-3-pro-image';
